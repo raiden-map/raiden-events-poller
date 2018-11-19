@@ -1,0 +1,3 @@
+## raiden_poller_cli
+
+This module is a command line interface developed using the `click` module. It enables to listen for events on the `EndpointRegistry` and `TokenNetworkRegistry` contracts given their address on the ethereum blockchain (defaults to their addresses on the ropsten test network). You can read the `@click.option` decorators to gain more information on the parameters it accepts and their default values.
