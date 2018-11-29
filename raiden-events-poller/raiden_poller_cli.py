@@ -24,6 +24,7 @@ from raiden_contracts.contract_manager import (
 )
 from raiden_contracts.constants import CONTRACT_TOKEN_NETWORK_REGISTRY
 
+# pylint: disable=E0401
 from poller_service import MetricsService
 
 log = logging.getLogger(__name__)

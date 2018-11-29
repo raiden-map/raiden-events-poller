@@ -19,6 +19,7 @@ from raiden_contracts.constants import (
     EVENT_ADDRESS_REGISTERED,
 )
 
+# pylint: disable=E0401
 from poller_utils import get_specific_event_info
 
 from .blockchain_listener import (
