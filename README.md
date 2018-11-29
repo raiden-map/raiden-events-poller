@@ -10,4 +10,6 @@ As of now, the code is heavily inspired by the work of the [raiden.network](http
 ## To-Do
 
 * Transform this project in a kafka producer
+* Handle blockchain reorganization
+* Handle blockchain unavailability
 * Track current block somewhere (file/database)
