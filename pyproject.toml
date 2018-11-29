@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "raiden-events-poller"
+version = "0.1.0"
+description = ""
+authors = ["Raiden Map Team <info@raidenmap.io>"]
+
+[tool.poetry.dependencies]
+python = "^3.7"
+gevent = "^1.3"
+web3 = "^4.8"
+eth-utils = "^1.3"
+raiden_libs = "^0.1.13"
+raiden-contracts = "^0.8.0"
+requests = "^2.20"
+
+[tool.poetry.dev-dependencies]
+black = {version = "^18.3-alpha.0",allows-prereleases = true}
+mypy = "^0.641.0"
+pylint = "^2.2"
+bandit = "^1.5"
+setuptools = "^40.6"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
