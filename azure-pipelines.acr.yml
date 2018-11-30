@@ -3,7 +3,7 @@ pool:
 
 variables:
   acrUrl: $(dockerUser).$(registryDomain)
-  imageName: '$(acrUrl)/$(settings.teamProject):$(build.buildId)'
+  imageName: '$(acrUrl)/raiden-events-poller:$(build.buildId)'
 
 steps:
 - bash: docker build -f Dockerfile -t $(imageName) .
