@@ -7,10 +7,12 @@ pool:
   vmImage: 'Ubuntu 16.04'
 
 variables:
-  projectName: raiden-events-poller
-  registryLoginServer: raidenmap.azurecr.io
-  imageName: '$(registryLoginServer)/raiden-events-poller:$(build.buildId)'
+  acrUrl: $(dockerUser).$(registryDomain)
+  imageName: '$(acrUrl)/$(settings.teamProject):$(build.buildId)'
 
 steps:
-- script: docker build -f Dockerfile -t $(imageName) .
+- script: |
+    docker build -f Dockerfile -t $(imageName) .
+    docker login -u $(dockerUser) -p $(dockerPassword) $(acrUrl)
+    docker push $(imageName)
   displayName: 'docker build'
