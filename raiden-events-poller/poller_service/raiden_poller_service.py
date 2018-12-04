@@ -46,9 +46,7 @@ def handle_channel_event(event: Dict) -> None:
     channel_identifier = event["args"]["channel_identifier"]
 
     log_entry = (
-        f"Received {event_name} "
-        f"event for token network {token_address} "
-        f"on channel {channel_identifier}"
+        f"evt: {event_name} " f"net: {token_address} " f"ch: {channel_identifier}"
     )
 
     log_entry += get_specific_event_info(event)
@@ -130,6 +128,9 @@ class MetricsService(gevent.Greenlet):
         if self.token_network_registry_listener is not None:
             self.token_network_registry_listener.start()
 
+        if self.endpoint_registry_listener is not None:
+            self.endpoint_registry_listener.start()
+
         self.is_running.wait()
 
     def stop(self) -> None:
@@ -139,7 +140,9 @@ class MetricsService(gevent.Greenlet):
     # pylint: disable=R0201
     def handle_endpoint_registered(self, event: Dict):
         """Handles the EVENT_ADDRESS_REGISTERED event"""
-        print(event)
+        eth_address: str = event["args"]["eth_address"]
+        endpoint: str = event["args"]["endpoint"]
+        log.info(f"New Node. eth_addr: {eth_address} ip_addr: {endpoint}")
 
     def handle_token_network_created(self, event: Dict):
         """Handles the EVENT_TOKEN_NETWORK_CREATED event"""
@@ -152,7 +155,7 @@ class MetricsService(gevent.Greenlet):
 
         if token_network_address not in self.token_networks:
             log.info(
-                f"Found token network for token {token_address} @ {token_network_address}"
+                f"New Token Network. token: {token_address} address: {token_network_address}"
             )
             self.create_token_network_for_address(
                 token_network_address, event_block_number

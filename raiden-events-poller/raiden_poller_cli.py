@@ -22,18 +22,18 @@ from raiden_contracts.contract_manager import (
     contracts_precompiled_path,
     get_contracts_deployed,
 )
-from raiden_contracts.constants import CONTRACT_TOKEN_NETWORK_REGISTRY
+from raiden_contracts.constants import (
+    CONTRACT_TOKEN_NETWORK_REGISTRY,
+    CONTRACT_ENDPOINT_REGISTRY,
+)
 
-# pylint: disable=E0401
 from poller_service import MetricsService
-
-log = logging.getLogger(__name__)
 
 DEFAULT_PORT = 9999
 OUTPUT_FILE = "network-info.json"
 TEMP_FILE = "tmp.json"
 OUTPUT_PERIOD = 10  # seconds
-REQUIRED_CONFIRMATIONS = 2  # ~2min with 15s blocks
+REQUIRED_CONFIRMATIONS = 8  # ~2min with 15s blocks
 
 
 @click.command()
@@ -45,13 +45,13 @@ REQUIRED_CONFIRMATIONS = 2  # ~2min with 15s blocks
 )
 @click.option(
     "--token-registry-address",
-    default="0x40a5D15fD98b9a351855D64daa9bc621F400cbc5",  # Indirizzo v3 0x332849E900b9fc4E82482B5680624818782db443
+    default="0x4a6E1fe3dB979e600712E269b26207c49FEe116E",
     type=str,
     help="Address of the token network registry",
 )
 @click.option(
     "--endpoint-registry-address",
-    default="0x8DB433a27F8be1d38f316e44441c381b5746f8fe",
+    default="0x444588dFCFe27B31701D3a1541b19849314d1Cac",
     type=str,
     help="Address of the endpoint registry",
 )
@@ -64,21 +64,28 @@ REQUIRED_CONFIRMATIONS = 2  # ~2min with 15s blocks
     type=int,
     help="Number of block confirmations to wait for",
 )
+# @click.option(
+#     "--latest",
+#     default=True,
+#     type=bool,
+#     help="If you want to use the latest contract release",
+# )
 def main(
     eth_rpc,
     token_registry_address,
     endpoint_registry_address,
     start_block,
     confirmations,
+    # latest,
 ):
     """Main command"""
     # setup logging
     logging.basicConfig(
         level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        datefmt="%m-%d %H:%M:%S",
+        format="%(asctime)s %(levelname)s %(message)s",
+        datefmt="%Y%m%d %H:%M:%S",
     )
-
+    log = logging.getLogger(__name__)
     logging.getLogger("web3").setLevel(logging.INFO)
     logging.getLogger("urllib3.connectionpool").setLevel(logging.ERROR)
 
@@ -94,39 +101,58 @@ def main(
         )
         sys.exit()
 
+    # chain = Net(web3)
+    # log.info(f"Net version = {chain.version}")
+    # # use limits for mainnet, pre limits for testnets
+    # is_mainnet = chain.version == 1
+    # version = None if is_mainnet else "pre_limits"
+
     with no_ssl_verification():
         valid_params_given = (
             is_checksum_address(token_registry_address) and start_block >= 0
         )
-        if not valid_params_given:
+
+        if not valid_params_given: # or latest is True
             try:
-                chain_id = int(Net.version)
-                # use limits for mainnet, pre limits for testnets
-                is_mainnet = chain_id == 1
-                version = None if is_mainnet else "pre_limits"
-                contract_data = get_contracts_deployed(int(Net.version), version)
+                contract_data = get_contracts_deployed(chain_id=4, version="pre_limits")
                 token_network_registry_info = contract_data["contracts"][
                     CONTRACT_TOKEN_NETWORK_REGISTRY
-                ]  # noqa
+                ]
+                endpoint_registry_info = contract_data["contracts"][
+                    CONTRACT_ENDPOINT_REGISTRY
+                ]
+
                 token_registry_address = token_network_registry_info["address"]
-                start_block = max(0, token_network_registry_info["block_number"] - 100)
-            except ValueError:
+                endpoint_registry_address = endpoint_registry_info["address"]
+
+                start_block = (
+                    min(
+                        token_network_registry_info["block_number"],
+                        endpoint_registry_info["block_number"],
+                    )
+                    - 20
+                )
+
+            except ValueError as ex:
+                log.error(ex)
                 log.error(
                     "Provided registry address or start block are not valid and "
                     "no deployed contracts were found"
                 )
                 sys.exit(1)
 
-        service = MetricsService(
+        token_service = MetricsService(
             web3=web3,
-            contract_manager=ContractManager(contracts_precompiled_path()),
+            contract_manager=ContractManager(
+                contracts_precompiled_path(version="pre_limits")
+            ),
             token_registry_address=token_registry_address,
             endpoint_registry_address=endpoint_registry_address,
             sync_start_block=start_block,
             required_confirmations=confirmations,
         )
 
-        service.run()
+        token_service.run()
 
     sys.exit(0)
 
