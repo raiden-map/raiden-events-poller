@@ -1,6 +1,6 @@
 asn1crypto==0.24.0
 attrdict==2.0.0
-avro==1.8.2
+avro-python3==1.8.2
 certifi==2018.11.29
 cffi==1.11.5
 chardet==3.0.4
