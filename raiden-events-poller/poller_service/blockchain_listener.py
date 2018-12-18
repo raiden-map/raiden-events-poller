@@ -2,7 +2,6 @@
 import logging
 import sys
 from typing import Callable, Dict, Union, List, Tuple
-
 import requests
 from web3 import Web3
 from web3.contract import get_event_data
@@ -158,7 +157,8 @@ class BlockchainListener(gevent.Greenlet):
     # pylint: disable=E0202
     def _run(self):
         self.running = True
-        log.info("Starting blockchain polling (interval %ss)", self.poll_interval)
+        
+        log.info("Starting blockchain polling (interval %ss),  %s", self.poll_interval, self.contract_address)
         while self.running:
             try:
                 self._update()
@@ -224,34 +224,11 @@ class BlockchainListener(gevent.Greenlet):
             self.filter_events(filters_confirmed, self.confirmed_callbacks)
             log.debug("Finished.")
 
-        run_unconfirmed_filters = (
-            self.unconfirmed_head_number < new_unconfirmed_head_number
-            and len(self.unconfirmed_callbacks) > 0
-        )
-        if run_unconfirmed_filters:
-            # create filters depending on current head number
-            filters_unconfirmed = get_filter_params(
-                self.unconfirmed_head_number, new_unconfirmed_head_number
-            )
-            log.debug(
-                "Filtering for unconfirmed events: %s-%s @%d ...",
-                filters_unconfirmed["from_block"],
-                filters_unconfirmed["to_block"],
-                current_block,
-            )
-            # filter the events and run callbacks
-            self.filter_events(filters_unconfirmed, self.unconfirmed_callbacks)
-            log.debug("Finished.")
-
-        # update head hash and number
         try:
-            new_unconfirmed_head_hash = self.web3.eth.getBlock(
-                new_unconfirmed_head_number
-            ).hash
             new_confirmed_head_hash = self.web3.eth.getBlock(
                 new_confirmed_head_number
             ).hash
-        except AttributeError:
+        except AttributeError as ex:
             log.critical(
                 "RPC endpoint didn't return proper info for an existing block "
                 "(%d,%d)" % (new_unconfirmed_head_number, new_confirmed_head_number)
@@ -261,10 +238,10 @@ class BlockchainListener(gevent.Greenlet):
                 "This often happens when Parity is run with --fast or --warp sync."
             )
             log.critical("Cannot continue - check status of the ethereum node.")
+            print(ex)
             sys.exit(1)
 
         self.unconfirmed_head_number = new_unconfirmed_head_number
-        self.unconfirmed_head_hash = new_unconfirmed_head_hash
         self.confirmed_head_number = new_confirmed_head_number
         self.confirmed_head_hash = new_confirmed_head_hash
 
