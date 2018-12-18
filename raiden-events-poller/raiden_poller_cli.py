@@ -32,8 +32,8 @@ from poller_service import MetricsService
 DEFAULT_PORT = 9999
 OUTPUT_FILE = "network-info.json"
 TEMP_FILE = "tmp.json"
-OUTPUT_PERIOD = 10  # seconds
-REQUIRED_CONFIRMATIONS = 8  # ~2min with 15s blocks
+OUTPUT_PERIOD = 5 # seconds
+REQUIRED_CONFIRMATIONS = 12  # ~2min with 15s blocks
 
 
 @click.command()
@@ -45,13 +45,13 @@ REQUIRED_CONFIRMATIONS = 8  # ~2min with 15s blocks
 )
 @click.option(
     "--token-registry-address",
-    default="0x4a6E1fe3dB979e600712E269b26207c49FEe116E",
+    default="0x40a5D15fD98b9a351855D64daa9bc621F400cbc5",
     type=str,
     help="Address of the token network registry",
 )
 @click.option(
     "--endpoint-registry-address",
-    default="0x444588dFCFe27B31701D3a1541b19849314d1Cac",
+    default="0x8DB433a27F8be1d38f316e44441c381b5746f8fe",
     type=str,
     help="Address of the endpoint registry",
 )
