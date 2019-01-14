@@ -26,8 +26,9 @@ from raiden_contracts.constants import (
     CONTRACT_TOKEN_NETWORK_REGISTRY,
     CONTRACT_ENDPOINT_REGISTRY,
 )
-
+from poller_utils import AvroProducerManager
 from poller_service import MetricsService
+
 
 DEFAULT_PORT = 9999
 OUTPUT_FILE = "network-info.json"
@@ -64,6 +65,24 @@ REQUIRED_CONFIRMATIONS = 12  # ~2min with 15s blocks
     type=int,
     help="Number of block confirmations to wait for",
 )
+@click.option(
+    "--event-schema-dir",
+    default="/app/event-schemas",
+    type=str,
+    help="Directory's path which contain avro schemas",
+)
+@click.option(
+    "--kafka-broker-url",
+    default="raiden-kafka-headless.kafka.svc.cluster.local:9092",
+    type=str,
+    help="Kafka broker's url",
+)   
+@click.option(
+    "--schema-registry-url",
+    default="http://raiden-sr-schema-registry.kafka.svc.cluster.local:8081",
+    type=str,
+    help="Confluent's schema registry kafka",
+)
 # @click.option(
 #     "--latest",
 #     default=True,
@@ -76,6 +95,9 @@ def main(
     endpoint_registry_address,
     start_block,
     confirmations,
+    event_schema_dir,
+    kafka_broker_url,
+    schema_registry_url,
     # latest,
 ):
     """Main command"""
@@ -106,6 +128,7 @@ def main(
     # # use limits for mainnet, pre limits for testnets
     # is_mainnet = chain.version == 1
     # version = None if is_mainnet else "pre_limits"
+    producer_manager = AvroProducerManager( event_schema_dir, kafka_broker_url, schema_registry_url )
 
     with no_ssl_verification():
         valid_params_given = (
@@ -148,6 +171,7 @@ def main(
             ),
             token_registry_address=token_registry_address,
             endpoint_registry_address=endpoint_registry_address,
+            producer_manager=producer_manager,
             sync_start_block=start_block,
             required_confirmations=confirmations,
         )
