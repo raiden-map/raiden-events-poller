@@ -6,6 +6,7 @@ import time
 from typing import Dict, List
 from pprint import pprint
 import gevent
+from hexbytes import HexBytes
 from web3 import Web3
 from eth_utils import is_checksum_address
 from raiden_libs.gevent_error_handler import register_error_handler
@@ -170,8 +171,11 @@ class MetricsService(gevent.Greenlet):
             "id": event["args"]["channel_identifier"],
         }
 
+        key_dict = self.key_handler(event)
         specific_event_dict = get_specific_event_info(event, channel_event)
-        self.produce_manager.produce(event["event"], specific_event_dict)
+        self.produce_manager.produce(
+            event["event"], value=specific_event_dict, key=key_dict
+        )
 
     # pylint: disable=R0201
     def handle_endpoint_registered(self, event: Dict) -> None:
@@ -187,7 +191,11 @@ class MetricsService(gevent.Greenlet):
             "endpointAddress": event["args"]["endpoint"],
         }
 
-        self.produce_manager.produce(event["event"], specific_event_dict)
+        key_dict = self.key_handler(event)
+
+        self.produce_manager.produce(
+            event["event"], value=specific_event_dict, key=key_dict
+        )
 
     def handle_token_network_created(self, event: Dict) -> None:
         """Handles the EVENT_TOKEN_NETWORK_CREATED event"""
@@ -211,8 +219,11 @@ class MetricsService(gevent.Greenlet):
             self.create_token_network_for_address(
                 token_network_address, event_block_number
             )
-            # print(event["event"])
-            self.produce_manager.produce(event["event"], specific_event_dict)
+
+            key_dict = self.key_handler(event)
+            self.produce_manager.produce(
+                event["event"], value=specific_event_dict, key=key_dict
+            )
 
     def create_token_network_for_address(
         self, token_network_address: Address, block_number: int = 0

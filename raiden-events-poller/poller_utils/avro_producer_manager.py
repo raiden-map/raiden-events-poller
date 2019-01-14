@@ -98,6 +98,8 @@ class AvroProducerManager:
             A Dict with: value = event, key = kafka producer
         """
         schema_path = schema_avsc_research(event_schema_dir)
+        key_schema = combine_schema(schema_path["ProducerKey"])
+        del schema_path["ProducerKey"]
         event_schema_dict = create_nested_schema(schema_path)
         raiden_map_producer = {}
 
@@ -107,11 +109,12 @@ class AvroProducerManager:
                     "bootstrap.servers": kafka_broker_url,
                     "schema.registry.url": schema_registry_url,
                 },
+                default_key_schema=avro.loads(key_schema),
                 default_value_schema=avro.loads(schema),
             )
         return raiden_map_producer
 
-    def produce(self, event: str, value: Dict):
+    def produce(self, event: str,*, value: Dict, key: Dict):
         """Call specific producer for every type of event and send data defined in its event's schema
         
         Args: 
@@ -120,5 +123,5 @@ class AvroProducerManager:
         """
 
         self.raiden_map_producer[event].produce(
-            topic="tracking.raidenEvent." + event, value=value
-        )
+            topic="tracking.raidenEvent." + event, value=value, key=key
+                    )
