@@ -19,6 +19,7 @@ def opened_channel(event: Dict) -> Dict:
     specific_attribute = {
         "participant1": event["participant1"],
         "participant2": event["participant2"],
+        "settleTimeout": event["settle_timeout"]
     }
 
     return specific_attribute
@@ -48,7 +49,7 @@ def balance_proof_updated(event: Dict) -> Dict:
     """Details a balance proof related event"""
 
     specific_attribute = {
-        "closing_participant": event["closing_participant"],
+        "closingParticipant": event["closing_participant"],
         "nonce": event["nonce"],
     }
 
@@ -59,8 +60,8 @@ def settled(event: Dict) -> Dict:
     """Details the event of a settled"""
 
     specific_attribute = {
-        "participant1_amount": event["participant1_amount"],
-        "participant2_amount": event["participant2_amount"],
+        "participant1Amount": event["participant1_amount"],
+        "participant2Amount": event["participant2_amount"],
     }
 
     return specific_attribute
@@ -73,8 +74,8 @@ def unlocked(event: Dict) -> Dict:
         "participant": event["participant"],
         "partner": event["partner"],
         "locksroot": event["locksroot"],
-        "unlocked_amount": event["unlocked_amount"],
-        "returned_tokens": event["returned_tokens"],
+        "unlockedAmount": event["unlocked_amount"],
+        "returnedTokens": event["returned_tokens"],
     }
 
     return specific_attribute
