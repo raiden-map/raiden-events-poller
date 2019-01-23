@@ -19,15 +19,16 @@ from raiden_contracts.constants import (
     EVENT_TOKEN_NETWORK_CREATED,
     EVENT_ADDRESS_REGISTERED,
 )
+from poller_utils.db_store_manager import dbStoreManager
 
 # pylint: disable=E0401
 from poller_utils import get_specific_event_info, AvroProducerManager
-
 from .blockchain_listener import (
     BlockchainListener,
     create_registry_event_topics,
     create_channel_event_topics,
 )
+
 
 # pylint: disable=C0103
 TO_NANO: int = 10 ** 9
@@ -69,6 +70,7 @@ class MetricsService(gevent.Greenlet):
         self.token_networks: List[str] = []
         self.token_network_listeners: List[BlockchainListener] = []
         self.produce_manager = producer_manager
+        self.db_manager = dbStoreManager()
 
         self.token_network_registry_listener = BlockchainListener(
             web3=web3,
@@ -105,7 +107,8 @@ class MetricsService(gevent.Greenlet):
             ),
             self.handle_endpoint_registered,
         )
-
+        self.initialize_token_network_known(sync_start_block)
+        
         self.log.info(
             f"Starting TokenNetworkRegistry Listener"
             f" (required confirmations: {self.required_confirmations})...\n"
@@ -146,7 +149,9 @@ class MetricsService(gevent.Greenlet):
             A Dict with generic attributes.
                 """
 
-        blockTime = self.web3.eth.getBlock(event["blockNumber"])["timestamp"] * TO_NANO
+        block_number = event["blockNumber"]
+        tx_hash = (event["transactionHash"]).hex()
+        blockTime = self.web3.eth.getBlock(block_number)["timestamp"] * TO_NANO
         eventTime = int(time.time() * TO_NANO)
 
         metadata_attribute = {
@@ -156,6 +161,14 @@ class MetricsService(gevent.Greenlet):
         }
 
         return metadata_attribute
+
+    def key_handler(self, event: Dict) -> Dict:
+
+        tx_hash = (event["transactionHash"]).hex()
+
+        key = {"txHash": tx_hash}
+
+        return key
 
     def handle_channel_event(self, event: Dict) -> None:
         """Handles all channel events specified in raiden_contracts.constants.ChannelEvents and combine channel's generic attributes with event's generic attributes.
@@ -167,7 +180,7 @@ class MetricsService(gevent.Greenlet):
 
         channel_event = {
             "metadata": self.metadata_handler(event),
-            "addressId": event["address"],
+            "tokenNetworkAddress": event["address"],
             "id": event["args"]["channel_identifier"],
         }
 
@@ -219,11 +232,25 @@ class MetricsService(gevent.Greenlet):
             self.create_token_network_for_address(
                 token_network_address, event_block_number
             )
-
             key_dict = self.key_handler(event)
             self.produce_manager.produce(
                 event["event"], value=specific_event_dict, key=key_dict
             )
+            self.token_networks.append(token_network_address)
+            self.db_manager.save_token_network(
+                token_address, token_network_address, event_block_number
+            )
+
+    def initialize_token_network_known(self, start_block):
+        result = self.db_manager.fetch_saved_token_network()
+        for record in result:
+            token_network_address = record["token_network_address"]
+            block_number = record["block_number"]
+            self.token_networks.append(token_network_address)
+            self.create_token_network_for_address(
+                token_network_address, start_block
+            )
+            print("ADDED TOKEN NETWORK: ", str(record["token_network_address"]))
 
     def create_token_network_for_address(
         self, token_network_address: Address, block_number: int = 0

@@ -29,6 +29,7 @@ from raiden_contracts.constants import (
 from poller_utils import AvroProducerManager
 from poller_service import MetricsService
 
+from poller_utils.consumer_recovery import ConsumerRecovery
 
 DEFAULT_PORT = 9999
 OUTPUT_FILE = "network-info.json"
@@ -128,8 +129,13 @@ def main(
     # # use limits for mainnet, pre limits for testnets
     # is_mainnet = chain.version == 1
     # version = None if is_mainnet else "pre_limits"
-    producer_manager = AvroProducerManager( event_schema_dir, kafka_broker_url, schema_registry_url )
+    
 
+    producer_manager = AvroProducerManager( event_schema_dir, kafka_broker_url, schema_registry_url )
+    consumer = ConsumerRecovery()
+    start_block = producer_manager.max_block_number_produced()
+    producer_manager.set_produced_event(consumer.get_produced_event())
+    
     with no_ssl_verification():
         valid_params_given = (
             is_checksum_address(token_registry_address) and start_block >= 0
@@ -147,7 +153,7 @@ def main(
 
                 token_registry_address = token_network_registry_info["address"]
                 endpoint_registry_address = endpoint_registry_info["address"]
-
+                """
                 start_block = (
                     min(
                         token_network_registry_info["block_number"],
@@ -155,6 +161,7 @@ def main(
                     )
                     - 20
                 )
+                """
 
             except ValueError as ex:
                 log.error(ex)

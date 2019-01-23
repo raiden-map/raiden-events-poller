@@ -2,8 +2,12 @@ import os
 import sys
 from typing import Dict
 from json import dumps, loads
-from confluent_kafka import avro
+from confluent_kafka import avro, KafkaError
 from confluent_kafka.avro import AvroProducer
+import time
+from pprint import pprint
+from confluent_kafka.cimpl import OFFSET_END, OFFSET_STORED
+from .db_store_manager import dbStoreManager
 
 
 def combine_schema(*schema: str) -> str:
@@ -88,6 +92,13 @@ class AvroProducerManager:
         self.raiden_map_producer = self.producer_factory(
             kafka_broker_url, schema_registry_url, event_schema_dir
         )
+        self.db_manager = dbStoreManager()
+        self.max_block_number = 0
+        self.offset = 0
+        self.produced_event = []
+    
+    def set_produced_event(self, produced_event):
+        self.produced_event = produced_event
 
     def producer_factory(
         self, kafka_broker_url: str, schema_registry_url: str, event_schema_dir: str
@@ -102,26 +113,72 @@ class AvroProducerManager:
         del schema_path["ProducerKey"]
         event_schema_dict = create_nested_schema(schema_path)
         raiden_map_producer = {}
-
+        
         for event, schema in event_schema_dict.items():
-            raiden_map_producer[event] = AvroProducer(
-                {
-                    "bootstrap.servers": kafka_broker_url,
-                    "schema.registry.url": schema_registry_url,
-                },
-                default_key_schema=avro.loads(key_schema),
-                default_value_schema=avro.loads(schema),
-            )
+            try:
+                raiden_map_producer[event] = AvroProducer(
+                    {
+                        "bootstrap.servers": kafka_broker_url,
+                        "schema.registry.url": schema_registry_url,
+                    },
+                    default_key_schema=avro.loads(key_schema),
+                    default_value_schema=avro.loads(schema),
+                )
+            except KafkaError as ke:
+                print(ke)
+            except Exception:
+                sys.exit(1)
+            
         return raiden_map_producer
+
 
     def produce(self, event: str,*, value: Dict, key: Dict):
         """Call specific producer for every type of event and send data defined in its event's schema
         
         Args: 
-            event: A specific event triggered in its constract
-            value = Specific event's schema to complete with catched attributes
+            event: Name's event
+            value: A specific event's schema
+            key: The schema that contains tx hash
         """
 
-        self.raiden_map_producer[event].produce(
-            topic="tracking.raidenEvent." + event, value=value, key=key
-                    )
+        def delivery_report(err, msg):
+        
+            if err is not None:
+                print('Message delivery failed: {}'.format(err))
+            else:
+                #print('Message delivered to {} [{}][{}]'.format(msg.topic(), msg.partition(), msg.offset()))
+                self.offset = msg.offset()
+
+        if key["txHash"] not in self.produced_event:
+
+            self.raiden_map_producer[event].produce(
+                topic="tracking.raidenEvent." + event, value=value, key=key, callback=delivery_report
+                        )
+            self.raiden_map_producer[event].poll(0)
+
+            if event.startswith("Channel"):
+                block_number = value["channelEvent"]["metadata"]["blockNumber"]
+                print("PRODUCER: ", block_number)
+
+                if block_number > self.max_block_number:
+                    self.max_block_number = block_number
+                    self.db_manager.update_block_number(event, block_number)
+                    self.db_manager.new_produced_block( self.offset, self.max_block_number, event )
+        else:
+            print("Event: ", key["txHash"], " is in Kafka")
+
+    def max_block_number_produced(self):
+        """Find the maximum block number of which all events were produced
+        
+        Returns:
+            The maximum block number if it exists, otherwise a minimum number
+        """
+        max_block_number = self.db_manager.max_block()
+        if max_block_number is None:
+            return 3800000
+        else:
+            return max_block_number
+
+
+
+
