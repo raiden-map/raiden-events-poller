@@ -1,7 +1,6 @@
 import os
 import sys
 from typing import Dict
-from json import dumps, loads
 from confluent_kafka import avro, KafkaError
 from confluent_kafka.avro import AvroProducer
 import time
@@ -10,7 +9,7 @@ from confluent_kafka.cimpl import OFFSET_END, OFFSET_STORED
 from .db_store_manager import dbStoreManager
 
 
-def combine_schema(*schema: str) -> str:
+def combine_schema(schema):
     """Concatenate metadata schema with specific event's schema.
     
     Args:
@@ -19,13 +18,13 @@ def combine_schema(*schema: str) -> str:
     Returns:    
         All schemas concatenated ( nested schema ) to be read in avro.
     """
-
     schemas = [open(el).read().replace("\r\n", "\n") for el in schema]
 
-    combined_schema = "[" + ",".join(schemas) + "]"
+    for i in range(1,len(schemas)):
+        schemas[i] = (schemas[i]).replace('"io.raidenmap.event.Metadata"',(schemas[i-1]).replace('"namespace": "io.raidenmap.event",',''))
+        schemas[i] = (schemas[i]).replace('"io.raidenmap.event.channel.ChannelEvent"',(schemas[i-1]).replace('"namespace": "io.raidenmap.event.channel",',''))
 
-    return combined_schema
-
+    return schemas[len(schemas)-1]
 
 def schema_avsc_research(schema_directory: str) -> Dict:
     """Find all avro schema from a folder.
@@ -67,14 +66,15 @@ def create_nested_schema(directory_dict: Dict) -> Dict:
             continue
 
         if event.startswith(("Channel", "Non")):
-            schema_dict[event] = combine_schema(
-                metadata_dir, channel_event_dir, directory
-            )
+            a=[metadata_dir, channel_event_dir, directory]
+            schema_dict[event] = combine_schema(a)
+
         elif event != "Metadata":
-            schema_dict[event] = combine_schema(metadata_dir, directory)
+            a=[metadata_dir, directory]
+            schema_dict[event] = combine_schema(a)
+
 
     return schema_dict
-
 
 class AvroProducerManager:
     """Manages kafka producer to record events details.
@@ -109,7 +109,7 @@ class AvroProducerManager:
             A Dict with: value = event, key = kafka producer
         """
         schema_path = schema_avsc_research(event_schema_dir)
-        key_schema = combine_schema(schema_path["ProducerKey"])
+        key_schema = open(schema_path["ProducerKey"]).read()
         del schema_path["ProducerKey"]
         event_schema_dict = create_nested_schema(schema_path)
         raiden_map_producer = {}
